@@ -1,26 +1,21 @@
 import asyncio
 
-import aiohttp
+from fastapi import FastAPI
+import uvicorn
+from ProxyPool import ProxyPool, ProxyItem
 
-from ProxyPool.spider import ProxySpider
-from ProxyPool.storage import ProxyPoolStorage
-from ProxyPool.validator import ProxyPoolValidator
+app = FastAPI()
+proxy_pool: ProxyPool = None
 
-async def main():
-    validator = ProxyPoolValidator()
-    # validator.run_detach()
-    await validator.start()
-    # spider = ProxySpider()
-    # proxy_list = await spider.get_proxy_list()
+@app.on_event("startup")
+async def startup_event():
+    global proxy_pool
+    proxy_pool = ProxyPool()
 
-    # # print(proxy_list)
-    # print("本轮共抓取代理 {} 个".format(len(proxy_list)))
-    # storage = ProxyPoolStorage()
-    # added_count = 0
-    # for proxy in proxy_list:
-    #     b = storage.add(proxy)
-    #     added_count += int(b)
-    # print("一共添加 {} 个代理".format(added_count))
+@app.get("/item", response_model=ProxyItem)
+async def get_one_proxy():
+    return proxy_pool.get_proxy() 
+
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    uvicorn.run(app, host="127.0.0.1", port=8000)

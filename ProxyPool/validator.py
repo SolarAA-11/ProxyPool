@@ -12,9 +12,9 @@ class ProxyPoolValidator:
     def __init__(
         self, 
         *, 
-        run_interval: int = 5, # 验证的间隔时间
+        run_interval: int = 5, # 验证的间隔时间 分钟
         max_concurrent_req: int = 1000, # 最大并发请求量
-        timout: int = 20, # 验证超时时间
+        timout: int = 20, # 验证超时时间 秒钟
     ):
         self.run_interval = 5
         self.storage = ProxyPoolStorage()
@@ -37,18 +37,12 @@ class ProxyPoolValidator:
         try:
             proxy_url = "http://{ip}:{port}".format(**proxy.dict())
             async with self.semaphore_max_concurrent_req:
-                # async with self.session.get(
-                #         "https://httpbin.org/ip", 
-                #         proxy=proxy_url, 
-                #         timeout=self.timeout
-                #     ) as resp:
-                #     status_code, content = resp.status, await resp.json()
                 async with self.session.get(
-                        "https://www.baidu.com", 
+                        "https://httpbin.org/ip", 
                         proxy=proxy_url, 
                         timeout=self.timeout
                     ) as resp:
-                    status_code, content = resp.status,{"origin": proxy.ip}
+                    status_code, content = resp.status, await resp.json()
             # print(status_code, content)
             # print(proxy)
         except Exception as e:
@@ -77,7 +71,7 @@ class ProxyPoolValidator:
                 print("OK")
             else: self.storage.deactivate(proxy)
             self.current_finish_check_count += 1
-            print("代理池验证器: {}/{}".format(self.current_finish_check_count, self.total_proxy_count))
+            # print("代理池验证器: {}/{}".format(self.current_finish_check_count, self.total_proxy_count))
 
 
         # 迭代列表 构造并行任务 
@@ -103,4 +97,4 @@ class ProxyPoolValidator:
                 activated, total = await self.validate_proxy_pool()
                 print("代理池验证器: 一共 {} 个， 有效 {} 个".format(total, activated))
 
-                await asyncio.sleep(self.run_interval)
+                await asyncio.sleep(self.run_interval * 60)

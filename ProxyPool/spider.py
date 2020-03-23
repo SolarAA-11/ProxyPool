@@ -1,6 +1,6 @@
 import asyncio, sys
 from asyncio import Event
-from typing import List, Callable
+from typing import List, Callable, Tuple
 
 import aiohttp
 from bs4 import BeautifulSoup  
@@ -36,7 +36,7 @@ class ProxySpider(object, metaclass=SpiderMeta):
         return proxy_list
     
     # 通过代理获取 url 内容
-    async def fetch_through_proxy(self, url: str, current_retry_count: int) -> str:
+    async def fetch_through_proxy(self, url: str, current_retry_count: int) -> Tuple[str, str, str]:
         status_code, content = None, ""
 
         # 构造代理连接
@@ -68,7 +68,7 @@ class ProxySpider(object, metaclass=SpiderMeta):
         return proxy_list
 
     # 获取 xicidaili 的免费代理
-    async def crawl_xicidaili(self) -> List[ProxyItem]:
+    async def _crawl_xicidaili(self) -> List[ProxyItem]:
         proxy_list: List[ProxyItem] = list()
         url_template = "https://www.xicidaili.com/nn/{}"
 
@@ -112,4 +112,25 @@ class ProxySpider(object, metaclass=SpiderMeta):
         await event_url_fetch_finish.wait()
 
         return proxy_list
+
+    # 获取 free proxy list 的代理
+    async def crawl_free_proxy_list(self) -> List[ProxyItem]:
+        proxy_list: List[ProxyItem] = list()
+        url = "https://free-proxy-list.net/"
+        retry_count, content = 0, ""
+
+        while retry_count <= self.max_retry_count:
+            content, _, _ = await self.fetch_through_proxy(url, retry_count)
+            if content != "": break
+            retry_count += 1
+        
+        if content != "":
+            soup = BeautifulSoup(content, "lxml")
+            for tr_node in soup.select("#proxylisttable tbody>tr"):
+                td_node_list = tr_node.select("td")
+                proxy_item = ProxyItem(ip=td_node_list[0].string, port=td_node_list[1].string, https=td_node_list[6].string == "yes")
+                proxy_list.append(proxy_item)
+        
+        return proxy_list
+
 

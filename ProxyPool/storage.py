@@ -6,8 +6,10 @@ import redis
 from .models import ProxyItem
 
 redis_engine = redis.Redis(host="127.0.0.1", port=6379)
-REDIS_PROXY_KEY = "ProxyPool:ProxyItem:SSet"
+# REDIS_PROXY_KEY = "ProxyPool:ProxyItem:SSet" # 国内
 # zrange ProxyPool:ProxyItem:SSet 0 -1 withscores
+REDIS_PROXY_KEY = "ProxyPool:ProxyItem:SSet:Foreign" # 国外
+# zrange ProxyPool:ProxyItem:SSet:Foreign 0 -1 withscores
 class ProxyPoolStorage:
     '''
     操作 Redis 进行 Proxy 的存储和排序
