@@ -1,5 +1,5 @@
 from typing import List, Callable
-import json
+import json, logging, configparser
 
 from bs4 import BeautifulSoup
 
@@ -9,7 +9,7 @@ from .models import JobBase, CrawlJob, ValidateJob, ProxyItem
 # JobFactory MetaClass
 class JobFactoryMetaClass(type):
     def __new__(cls, name, classes, attrs):
-        attrs["__Produce_Func__"]: List[callable] = list()
+        attrs["__Produce_Func__"] = list()
         for k, v in attrs.items():
             if k.startswith("produce_"):
                 attrs["__Produce_Func__"].append(v)
@@ -28,12 +28,16 @@ class CrawlJobFactory(JobFactory):
     
     def __init__(self):
         self.storage = ProxyPoolStorage()
-        self.page_count_for_xici = 1
+        config = configparser.ConfigParser()
+
+        config.read("pool.cfg", encoding="UTF-8")
+        self.page_count_for_xici = config.getint("CrawlJobFactory", "xicidaili_page_count")
     
     # 生产用户抓取 xicidaili 的 job
-    def produce_job_for_xicidaili(self) -> List[CrawlJob]:
+    def _produce_job_for_xicidaili(self) -> List[CrawlJob]:
         # job callback
         def crawl_xici_job_callback(content: str):
+            count_of_added_proxy = 0
             soup = BeautifulSoup(content, "lxml")
             for tr_node in soup.select("#ip_list tr")[1:]:
                 td_node_list = tr_node.select("td")
@@ -42,7 +46,9 @@ class CrawlJobFactory(JobFactory):
                     port=td_node_list[2].string,
                     https=td_node_list[5].string == "HTTPS"
                 )
-                self.storage.add(proxy_item)
+                is_added = self.storage.add(proxy_item)
+                count_of_added_proxy += int(is_added)
+            return count_of_added_proxy
         
         crawl_job_list: List[CrawlJob] = list()
         url_template = "https://www.xicidaili.com/nn/{}"
@@ -50,6 +56,28 @@ class CrawlJobFactory(JobFactory):
             target_url = url_template.format(index + 1)
             crawl_job_list.append(CrawlJob(target_url=target_url, callback=crawl_xici_job_callback))
         return crawl_job_list
+    
+    # 为 free proxy list 生成抓取任务
+    # https://free-proxy-list.net/
+    def produce_job_for_FreeProxyList(self) -> List[CrawlJob]:
+        # callback
+        def crawl_FreeProxyList_callback(content: str):
+            count_of_added_proxy = 0
+            soup = BeautifulSoup(content, "lxml")
+            for tr_node in soup.select("#proxylisttable tbody>tr"):
+                td_node_list = tr_node.select("td")
+                proxy_item = ProxyItem(
+                    ip=td_node_list[0].string,
+                    port=td_node_list[1].string,
+                    https=td_node_list[6].string == "yes"
+                )
+                is_added = self.storage.add(proxy_item)
+                count_of_added_proxy += int(is_added)
+            return count_of_added_proxy
+        target_url = "https://free-proxy-list.net/"
+        return [CrawlJob(target_url=target_url, callback=crawl_FreeProxyList_callback),]
+
+
 
 # ValidateJob 工厂 
 class ValidateJobFactory(JobFactory):
@@ -60,7 +88,7 @@ class ValidateJobFactory(JobFactory):
     # 生产 ValidateJob
     def produce_validate_jobs(self) -> List[ValidateJob]:
         # job callback 
-        def validate_job_callback(html_content: str, proxy_item: ProxyItem):
+        def validate_job_callback(html_content: str, proxy_item: ProxyItem) -> bool:
             # 验证响应是否有效
             is_valide = False
             try:
@@ -73,6 +101,7 @@ class ValidateJobFactory(JobFactory):
             # 通知 Storage
             if is_valide: self.storage.activate(proxy_item)
             else: self.storage.deactivate(proxy_item)
+            return is_valide
         
         validate_jobs: List[ValidateJob] = list()
         for proxy in self.storage.get_all():
