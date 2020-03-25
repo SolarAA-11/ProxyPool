@@ -107,5 +107,17 @@ class ValidateJobFactory(JobFactory):
         validate_jobs: List[ValidateJob] = list()
         for proxy in self.storage.get_all():
             validate_jobs.append(ValidateJob(proxy_item=proxy, callback=validate_job_callback))
-        return validate_jobs
+        
+        # 没有任何代理存在 造成死锁 返回一个 FakeProxyValidateJob
+        if len(validate_jobs) == 0:
+            fake_validate_job = ValidateJob(
+                proxy_item=ProxyItem(
+                    ip="0.0.0.0",
+                    port="0",
+                    https=False
+                ), 
+                callback=validate_job_callback
+            )
+            return [fake_validate_job, ]
+        else: return validate_jobs
 

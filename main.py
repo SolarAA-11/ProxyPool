@@ -1,38 +1,22 @@
-import asyncio, logging, configparser, sys
+import asyncio, logging, configparser
 
-import uvicorn, aiohttp, requests
+import uvicorn
 from fastapi import FastAPI
 
 from ProxyPool import ProxyPool ,create_proxypool
 from ProxyPool.models import ProxyItem
 
-
 app = FastAPI()
 proxy_pool: ProxyPool = None
 
-# async def test_proxy():
-#     async with aiohttp.ClientSession() as session:
-#         try_count = 0
-#         while True:
-#             proxy_item = proxy_pool.get()
-#             proxy = "http://{ip}:{port}".format(**proxy_item.dict())
-#             headers = {"user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/75.0.3770.142 Safari/537.36"}
-#             status_code, content = None, ""
-#             try_count += 1
-#             print("Try Count", try_count, proxy_item)
-#             try:
-#                 async with session.get("https://avhd101.com/", proxy=proxy, headers=headers, timeout=15) as resp:
-#                     status_code, content = resp.status, await resp.text()
-#             except Exception as e:
-#                 print("Exception:", e, sys.exc_info())
-#             if status_code == 200:
-#                 print(content)
-#                 break
 @app.on_event("startup")
 def on_app_startup():
     # 读取配置
     config = configparser.ConfigParser()
+    # 默认配置文件
     config.read(".cfg", encoding="UTF-8")
+    # 获取自定义配置文件
+    config.read("./production/config/production.cfg", encoding="UTF-8")
 
     # 启动代理池
     global proxy_pool
