@@ -26,15 +26,16 @@ class JobFactory(object, metaclass=JobFactoryMetaClass):
 # CrawlJob 工厂
 class CrawlJobFactory(JobFactory):
     
-    def __init__(self):
+    def __init__(
+        self,
+        *,
+        crawl_page_count_for_xici = 10, # 抓取的 XICIDAILI 的数量
+    ):
         self.storage = ProxyPoolStorage()
-        config = configparser.ConfigParser()
-
-        config.read("pool.cfg", encoding="UTF-8")
-        self.page_count_for_xici = config.getint("CrawlJobFactory", "xicidaili_page_count")
+        self.page_count_for_xici = crawl_page_count_for_xici
     
     # 生产用户抓取 xicidaili 的 job
-    def _produce_job_for_xicidaili(self) -> List[CrawlJob]:
+    def produce_job_for_xicidaili(self) -> List[CrawlJob]:
         # job callback
         def crawl_xici_job_callback(content: str):
             count_of_added_proxy = 0

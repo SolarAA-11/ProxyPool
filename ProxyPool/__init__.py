@@ -14,9 +14,12 @@ class ProxyPool:
         timeout = 20, # 请求超时时间
         max_retry_count = 10, # CrawlJob 最多尝试次数
         max_concurrent_request = 500, # 最大并发请求数量
+        **kwargs # 剩下参数全为 抓取任务的配置参数
     ):
         self.storage = ProxyPoolStorage()
-        self.crawl_job_factory = CrawlJobFactory()
+        self.crawl_job_factory = CrawlJobFactory(
+            **kwargs
+        )
         self.validate_job_factory = ValidateJobFactory()
         self.net_manager = NetManager(
             timeout=timeout,
@@ -85,13 +88,15 @@ def create_proxypool(
     timeout = 20, # 请求超时时间
     max_retry_count = 10, # CrawlJob 最多尝试次数
     max_concurrent_request = 500, # 最大并发请求数量
+    **kwargs, # 抓取任务配置参数 全部传递给 CrawlJobFactory
 ) -> ProxyPool:
     proxy_pool = ProxyPool(
         crawl_job_interval_hour=crawl_job_interval_hour,
         validate_job_interval_minute=validate_job_interval_minute,
         timeout=timeout,
         max_retry_count=max_retry_count,
-        max_concurrent_request=max_concurrent_request
+        max_concurrent_request=max_concurrent_request,
+        **kwargs
     )
     proxy_pool.detach_run()
     return proxy_pool
