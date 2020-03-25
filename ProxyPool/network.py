@@ -84,8 +84,8 @@ class NetManager:
         # if url == "https://free-proxy-list.net/":
         #     with open("freeproxy.html") as f:
         #         return f.read()
-        logging.debug("url: {} proxy: {}".format(url, proxy_item))
-        
+        logging.debug("新建请求 url: {} proxy: {}".format(url, proxy_item))
+
         status_code, content = None, ""
         try:
             headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/75.0.3770.142 Safari/537.36"}
@@ -128,9 +128,10 @@ class NetManager:
         while True: # 循环监听队列
             crawl_job: CrawlJob = await self.crawl_job_queue.get()
             task = asyncio.create_task(self.fetch_content(crawl_job.target_url, self.storage.get()))
-            logging.info(crawl_job)
             task.add_done_callback(_on_completed)
             task2job[task] = crawl_job
+
+            logging.info("添加 抓取任务 {}".format(crawl_job))
 
     # 消费 ValidateJob
     async def validate_job_consumer(self):
@@ -155,3 +156,5 @@ class NetManager:
             task = asyncio.create_task(self.fetch_content("https://httpbin.org/ip", validate_job.proxy_item))
             task.add_done_callback(_on_completed)
             task2job[task] = validate_job
+
+            logging.debug("添加 验证任务 {}".format(validate_job))
