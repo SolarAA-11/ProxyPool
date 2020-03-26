@@ -14,11 +14,17 @@ async def main():
     if not isinstance(numeric_level, int):
         raise ValueError('Invalid log level: %s' % loglevel)
     logging.basicConfig(
-        filename="./production/log/proxypool.log" if os.getenv("PRODUCTION_ENV") else "proxypool.log",
+        filename="./production/log/proxypool.log" if os.getenv("PRODUCTION_ENV") else "proxypool.dev.log",
         filemode="w",
         level=numeric_level,
         format="%(levelname)s - %(asctime)s : %(filename)s %(message)s",
     )
+
+    # 枚举出全部抓取任务 配置的抓取页数
+    crawl_job_page_count_dict = dict()
+    for option_key in config.options("CrawlJobFactory"):
+        if option_key.startswith("crawl_page_count_for_"):
+            crawl_job_page_count_dict[option_key] = config.getint("CrawlJobFactory", option_key)
 
     # 启动代理池
     proxy_pool = create_proxypool(
@@ -27,7 +33,7 @@ async def main():
         timeout=config.getint("ProxyPool", "timeout"),
         max_retry_count=config.getint("ProxyPool", "max_retry_count"),
         max_concurrent_request=config.getint("ProxyPool", "max_concurrent_request"),
-        crawl_page_count_for_xici=config.getint("CrawlJobFactory", "xicidaili_page_count")
+        **crawl_job_page_count_dict
     )
     
     # 等待两个生产协程对应的 Task

@@ -1,5 +1,5 @@
 from typing import List, Callable
-import json, logging, configparser
+import json, logging, configparser, re
 
 from bs4 import BeautifulSoup
 
@@ -30,9 +30,11 @@ class CrawlJobFactory(JobFactory):
         self,
         *,
         crawl_page_count_for_xici = 10, # 抓取的 XICIDAILI 的数量
+        crawl_page_count_for_freeproxy = 10, # 抓取的 freeproxy 的数量
     ):
         self.storage = ProxyPoolStorage()
         self.page_count_for_xici = crawl_page_count_for_xici
+        self.page_count_for_freeproxy = crawl_page_count_for_freeproxy
     
     # 生产用户抓取 xicidaili 的 job
     def produce_job_for_xicidaili(self) -> List[CrawlJob]:
@@ -77,6 +79,48 @@ class CrawlJobFactory(JobFactory):
             return count_of_added_proxy
         target_url = "https://free-proxy-list.net/"
         return [CrawlJob(target_url=target_url, callback=crawl_FreeProxyList_callback),]
+    
+    # 为 Free Proxy 网站 生成抓取任务
+    # http://free-proxy.cz/en/proxylist/main/1
+    def produce_job_for_FreeProxy(self):
+        # callback
+        def crawl_FreeProxy_callback(content: str):
+            count_of_added_proxy = 0
+            soup = BeautifulSoup(content, "lxml")
+            for tr_node in soup.select("#proxy_list > tbody > tr"):
+                td_node_list = tr_node.select("td")
+
+                # 获取 ip
+                ip_script_node = td_node_list[0].script
+                # document.write(Base64.decode("MTM0LjEyMi4xMjMuODI="))
+                match_group = re.match(r"document.write\(Base64.decode\(\"(?P<encoded_ip>.+)\"\)\)", ip_script_node.string)
+                ip = match_group.groupdict().get("encoded_ip", None)
+                
+                # 获取 port
+                port_span_node = td_node_list[1].span
+                port = port_span_node.string
+
+                # 获取 Http 判断
+                https_small_node = td_node_list[2].small
+                https = https_small_node.string == "HTTPS"
+
+                # 判断是否为透明代理 略过透明代理
+                anonymity_small_node = td_node_list[6].small
+                transparent = anonymity_small_node.string == "Transparent"
+                if transparent : continue
+
+                # 添加到数据库中
+                proxy_item = ProxyItem(ip=ip, port=port, https=https)
+                is_added = self.storage.add(proxy_item)
+                count_of_added_proxy += is_added
+            return count_of_added_proxy
+
+        crawl_job_list: List[CrawlJob] = list()
+        url_template = "http://free-proxy.cz/en/proxylist/main/{}"
+        for page_index in range(self.page_count_for_freeproxy):
+            target_url = url_template.format(page_index + 1)
+            crawl_job_list.append(CrawlJob(target_url=target_url, callback=crawl_FreeProxy_callback))
+        return crawl_job_list
 
 
 
