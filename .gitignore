@@ -1,5 +1,4 @@
 /venv
 /.vscode
-*/__pycache__
-/__pycache__
-production/data/appendonly.aof
+__pycache__
+production/data
