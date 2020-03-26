@@ -7,8 +7,6 @@ import aiohttp
 from .models import ProxyItem, JobBase, CrawlJob, ValidateJob, JobType
 from .storage import ProxyPoolStorage
 
-logger = logging.getLogger(__name__)
-
 # 消费 CrawlJobFactory 以及 ValidateJobFactory 产生的任务
 # 管理网络请求
 class NetManager:
@@ -81,11 +79,7 @@ class NetManager:
 
     # 向互联网中请求 url 数据
     async def fetch_content(self, url: str, proxy_item: ProxyItem) -> str:
-        # if url == "https://free-proxy-list.net/":
-        #     with open("freeproxy.html") as f:
-        #         return f.read()
         logging.debug("新建请求 url: {} proxy: {}".format(url, proxy_item))
-
         status_code, content = None, ""
         try:
             headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/75.0.3770.142 Safari/537.36"}
@@ -114,12 +108,17 @@ class NetManager:
                 count_added_proxy = crawl_job.callback(html_content)
                 self.event_crawl_job_finish.add_page_count()
                 self.event_crawl_job_finish.add_proxy_count(count_added_proxy)
+                logging.info("完成抓取任务 {} 添加代理 {} 个".format(crawl_job.target_url, count_added_proxy))
             elif crawl_job.retry_count < self.max_retry_count: # 请求失败 且重试次数小于指定值 重新入队 等待下次调度
                 crawl_job.retry_count += 1
                 self.append_job(crawl_job)
             else: # 请求失败 耗尽重试次数
                 self.event_crawl_job_finish.add_page_fail_count()
-            del task2job[task]
+
+            if task in task2job:
+                del task2job[task]
+            else:
+                logging.error("task not int task2job")
 
             # 触发 crawl job 全部完成事件
             if len(task2job) == 0 and self.crawl_job_queue.qsize() == 0:
@@ -143,8 +142,12 @@ class NetManager:
             is_activated = validate_job.callback(html_content, validate_job.proxy_item)
             if is_activated:
                 self.event_validate_job_finish.add_count_activated_proxy()
-            
-            del task2job[task]
+
+            if task in task2job:
+                del task2job[task]
+            else:
+                logging.error("task not in task2boj")
+            logging.debug("完成验证任务, 代理:{}, 可用否: {}".format(validate_job.proxy_item, is_activated))
 
             # 触发 validate job 全部完成事件
             if len(task2job) == 0 and self.validate_job_queue.qsize() == 0:

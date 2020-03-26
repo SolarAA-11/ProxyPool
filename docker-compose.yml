@@ -1,17 +1,31 @@
 version: "3.7"
 services: 
-    proxy_web:
-        build: .
+    proxypool:
+        build:
+            context: "./src"
+            dockerfile: "../deployment/ProxyPool.Dockerfile"
+        environment: 
+            - PRODUCTION_ENV=1
+        volumes: 
+            - "./production/config:/app/production/config:ro"
+            - "./production/log:/app/production/log"
+        depends_on: 
+            - redis
+    webapi:
+        build:
+            context: "./src"
+            dockerfile: "../deployment/WebAPI.Dockerfile"
+        environment: 
+            - PRODUCTION_ENV=1
+            - WEB_CONCURRENCY=2
+        volumes: 
+            - "./production/:/app/production/:ro"
         ports: 
             - "5050:5050"
         depends_on: 
             - redis
-        environment: 
-            - PROXYPOOL_DEV=1
-        volumes: 
-            - "./production/config:/app/production/config"
     redis:
         image: redis
         volumes: 
-            - "./production/data:/data"
+            - "./production/data/:/data/"
         command: redis-server --appendonly yes

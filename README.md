@@ -70,7 +70,7 @@ def produce_job_for_FreeProxyList(self) -> List[CrawlJob]:
 | api | method | Description | QueryArg | Body |
 | :--- | :--- | :--- | :--- | :--- |
 | / | GET | 获取前 30 随机代理 | 无 | 无 |
-| /random?{range} | GET | 获取指定范围内的随机代理 | range 表示代理的范围 | 无 |
+| /random?{random_range} | GET | 获取指定范围内的随机代理 | range 表示代理的范围 | 无 |
 | /all | GET | 返回全部代理 | 无 | 无 |
 | /activate | POST | 激活代理 | 无 | ProxyItem |
 | /deactivate | POST | 代理降权 | 无 | ProxyItem |

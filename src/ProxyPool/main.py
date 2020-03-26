@@ -1,4 +1,4 @@
-import asyncio, logging, configparser
+import asyncio, logging, configparser, os
 
 from ProxyPool import ProxyPool ,create_proxypool
 from ProxyPool.models import ProxyItem
@@ -7,10 +7,18 @@ from ProxyPool.models import ProxyItem
 async def main():
     # 读取配置
     config = configparser.ConfigParser()
-    # 默认配置文件
-    config.read(".cfg", encoding="UTF-8")
-    # 获取自定义配置文件
-    config.read("./production/config/production.cfg", encoding="UTF-8")
+    config.read(["./production/config/.cfg", "./production/config/production.cfg"], encoding="UTF-8")
+
+    # 日志配置
+    numeric_level = getattr(logging, config.get("ProxyPool", "log_level").upper(), None)
+    if not isinstance(numeric_level, int):
+        raise ValueError('Invalid log level: %s' % loglevel)
+    logging.basicConfig(
+        filename="./production/log/proxypool.log" if os.getenv("PRODUCTION_ENV") else "proxypool.log",
+        filemode="w",
+        level=numeric_level,
+        format="%(levelname)s - %(asctime)s : %(filename)s %(message)s",
+    )
 
     # 启动代理池
     proxy_pool = create_proxypool(
@@ -26,11 +34,4 @@ async def main():
     await proxy_pool.task_for_produce_crawl_validate_job
 
 if __name__ == "__main__":
-    # asyncio.run(main())
-    uvicorn.run(
-        app, 
-        debug=True, 
-        # logging 
-        use_colors=False,
-        log_level="debug",
-    )
+    asyncio.run(main())

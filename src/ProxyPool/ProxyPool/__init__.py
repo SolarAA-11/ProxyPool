@@ -29,12 +29,14 @@ class ProxyPool:
         self.crawl_job_interval = crawl_job_interval_hour * 3600
         self.validate_job_interval = validate_job_interval_minute * 60
 
+        self.task_for_produce_crawl_validate_job: asyncio.Task = None
+
     # 启动 线程池 并行运行
     def detach_run(self):
         # 启动 netmanager 模块
         self.net_manager.run()
         # 并发运行 两个 consumer 协程
-        asyncio.gather(
+        self.task_for_produce_crawl_validate_job = asyncio.gather(
             self.crawljob_producer(), 
             self.validatejob_producer()
         )

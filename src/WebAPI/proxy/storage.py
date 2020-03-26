@@ -6,7 +6,7 @@ import redis
 from .models import ProxyItem
 
 
-redis_engine = redis.Redis(host="redis" , port=6379) if os.getenv("PROXYPOOL_DEV") else redis.Redis(host="127.0.0.1" , port=6379)
+redis_engine = redis.Redis(host="redis" , port=6379) if os.getenv("PRODUCTION_ENV") else redis.Redis(host="127.0.0.1" , port=6379)
 REDIS_PROXY_KEY = "ProxyPool:ProxyItem:SSet" # 国内
 # zrange ProxyPool:ProxyItem:SSet 0 -1 withscores
 # REDIS_PROXY_KEY = "ProxyPool:ProxyItem:SSet:Foreign" # 国外
