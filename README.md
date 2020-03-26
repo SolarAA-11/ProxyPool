@@ -54,3 +54,4 @@ def produce_job_for_FreeProxyList(self) -> List[CrawlJob]:
 
 - [ ] 随机返回的代理，在代理池中的范围。使此项可配置；
 - [ ] 添加 API 反馈功能。通过 API 获取代理之后，可以通过 POST 将代理返回给 Web API，告知代理池此代理的使用情况：可用还是不可用。代理次将其激活或降权；
+- [ ] 分离 ProxyPool 和 Web API，提高 WebAPI 的并发能力。计划分成不同的 Service，WEB API 复用 Storage 模块；
