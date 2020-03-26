@@ -67,8 +67,6 @@ def produce_job_for_FreeProxyList(self) -> List[CrawlJob]:
 - 接收代理 Json 格式，将此代理降权；
 - 返回全部代理；
 
-### API
-
 | api | method | Description | QueryArg | Body |
 | :--- | :--- | :--- | :--- | :--- |
 | / | GET | 获取前 30 随机代理 | 无 | 无 |
@@ -76,3 +74,13 @@ def produce_job_for_FreeProxyList(self) -> List[CrawlJob]:
 | /all | GET | 返回全部代理 | 无 | 无 |
 | /activate | POST | 激活代理 | 无 | ProxyItem |
 | /deactivate | POST | 代理降权 | 无 | ProxyItem |
+
+**ProxyItem** JSON 格式：
+
+```javascript
+{
+    "ip": "99.0.0.23",
+    "port": 9999,
+    "https": false
+}
+```
