@@ -3,7 +3,7 @@
 1. 克隆仓库
 2. 安装 Docker 以及 Docker Compose
 3. 终端输入 `docker-compose up -d`
-4. 浏览器地址栏中输入 localhost:5050/proxy ，即可获得 代理的 Json 格式
+4. 浏览器地址栏中输入 `localhost:5050/` ，即可获得代理的 Json 格式
 
 ## 抓取的网站
 
