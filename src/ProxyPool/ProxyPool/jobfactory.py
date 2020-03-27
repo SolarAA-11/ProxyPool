@@ -1,5 +1,5 @@
 from typing import List, Callable
-import json, logging, configparser, re
+import json, logging, configparser, re, base64, time, traceback
 
 from bs4 import BeautifulSoup
 
@@ -131,31 +131,40 @@ class CrawlJobFactory(JobFactory):
             count_of_added_proxy = 0
             soup = BeautifulSoup(content, "lxml")
             for tr_node in soup.select("#proxy_list > tbody > tr"):
+                ip, port, https, anonymity_small_node = "-1.-1.-1.-1", "-1", False, True
                 td_node_list = tr_node.select("td")
+                try:
+                    # 获取 ip
+                    ip_script_node = td_node_list[0].script
+                    # document.write(Base64.decode("MTM0LjEyMi4xMjMuODI="))
+                    match_group = re.match(r"document.write\(Base64.decode\(\"(?P<encoded_ip>.+)\"\)\)", ip_script_node.string)
+                    ip = base64.b64decode(match_group.groupdict().get("encoded_ip", None)).decode("utf-8")
 
-                # 获取 ip
-                ip_script_node = td_node_list[0].script
-                # document.write(Base64.decode("MTM0LjEyMi4xMjMuODI="))
-                match_group = re.match(r"document.write\(Base64.decode\(\"(?P<encoded_ip>.+)\"\)\)", ip_script_node.string)
-                ip = match_group.groupdict().get("encoded_ip", None)
-                
-                # 获取 port
-                port_span_node = td_node_list[1].span
-                port = port_span_node.string
+                    # 获取 port
+                    port_span_node = td_node_list[1].span
+                    port = port_span_node.string
 
-                # 获取 Http 判断
-                https_small_node = td_node_list[2].small
-                https = https_small_node.string == "HTTPS"
+                    # 获取 Http 判断
+                    https_small_node = td_node_list[2].small
+                    https = https_small_node.string == "HTTPS"
 
-                # 判断是否为透明代理 略过透明代理
-                anonymity_small_node = td_node_list[6].small
-                transparent = anonymity_small_node.string == "Transparent"
-                if transparent : continue
+                    # 判断是否为透明代理 略过透明代理
+                    anonymity_small_node = td_node_list[6].small
+                    transparent = anonymity_small_node.string == "Transparent"
+                except Exception as e:
+                    logging.error("解析 FreeProxy 异常 %s traceback.format_exc():____%s tr_node_list %s" % (
+                        e,
+                        traceback.format_exc(),
+                        td_node_list
+                    ))
+                    continue
 
-                # 添加到数据库中
-                proxy_item = ProxyItem(ip=ip, port=port, https=https)
-                is_added = self.storage.add(proxy_item)
-                count_of_added_proxy += is_added
+                if not transparent:
+                    # 匿名代理 添加到数据库中
+                    proxy_item = ProxyItem(ip=ip, port=port, https=https)
+                    is_added = self.storage.add(proxy_item)
+                    count_of_added_proxy += is_added
+
             return count_of_added_proxy
 
         crawl_job_list: List[CrawlJob] = list()
