@@ -115,6 +115,7 @@ class NetManager:
             if html_content != "": # 正确获取 url 内容 调用回调
                 count_added_proxy = 0
                 try:
+                    logging.info("HTML CONTENT %s" % html_content)
                     count_added_proxy = crawl_job.callback(html_content)
                 except Exception as e: # 回调异常 重启任务
                     _crawl_job_retry(crawl_job)
