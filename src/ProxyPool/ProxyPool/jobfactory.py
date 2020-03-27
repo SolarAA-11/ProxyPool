@@ -23,9 +23,52 @@ class JobFactory(object, metaclass=JobFactoryMetaClass):
             job_list.extend(func(self))
         return job_list
 
+
+
+# ValidateJob 工厂 
+class ValidateJobFactory(JobFactory):
+
+    def __init__(self):
+        self.storage = ProxyPoolStorage()
+
+    # 生产 ValidateJob
+    def produce_validate_jobs(self) -> List[ValidateJob]:
+        # job callback 
+        def validate_job_callback(html_content: str, proxy_item: ProxyItem) -> bool:
+            # 验证响应是否有效
+            is_valide = False
+            try:
+                if html_content != "":
+                    json_dict = json.loads(html_content)
+                    is_valide = json_dict.get("origin", "") == proxy_item.ip
+            except ValueError:
+                pass
+
+            # 通知 Storage
+            if is_valide: self.storage.activate(proxy_item)
+            else: self.storage.deactivate(proxy_item)
+            return is_valide
+        
+        validate_jobs: List[ValidateJob] = list()
+        for proxy in self.storage.get_all():
+            validate_jobs.append(ValidateJob(proxy_item=proxy, callback=validate_job_callback))
+        
+        # 没有任何代理存在 造成死锁 返回一个 FakeProxyValidateJob
+        if len(validate_jobs) == 0:
+            fake_validate_job = ValidateJob(
+                proxy_item=ProxyItem(
+                    ip="0.0.0.0",
+                    port="0",
+                    https=False
+                ), 
+                callback=validate_job_callback
+            )
+            return [fake_validate_job, ]
+        else: return validate_jobs
+
+
 # CrawlJob 工厂
 class CrawlJobFactory(JobFactory):
-    
     def __init__(
         self,
         *,
@@ -123,45 +166,4 @@ class CrawlJobFactory(JobFactory):
         return crawl_job_list
 
 
-
-# ValidateJob 工厂 
-class ValidateJobFactory(JobFactory):
-
-    def __init__(self):
-        self.storage = ProxyPoolStorage()
-
-    # 生产 ValidateJob
-    def produce_validate_jobs(self) -> List[ValidateJob]:
-        # job callback 
-        def validate_job_callback(html_content: str, proxy_item: ProxyItem) -> bool:
-            # 验证响应是否有效
-            is_valide = False
-            try:
-                if html_content != "":
-                    json_dict = json.loads(html_content)
-                    is_valide = json_dict.get("origin", "") == proxy_item.ip
-            except ValueError:
-                pass
-
-            # 通知 Storage
-            if is_valide: self.storage.activate(proxy_item)
-            else: self.storage.deactivate(proxy_item)
-            return is_valide
-        
-        validate_jobs: List[ValidateJob] = list()
-        for proxy in self.storage.get_all():
-            validate_jobs.append(ValidateJob(proxy_item=proxy, callback=validate_job_callback))
-        
-        # 没有任何代理存在 造成死锁 返回一个 FakeProxyValidateJob
-        if len(validate_jobs) == 0:
-            fake_validate_job = ValidateJob(
-                proxy_item=ProxyItem(
-                    ip="0.0.0.0",
-                    port="0",
-                    https=False
-                ), 
-                callback=validate_job_callback
-            )
-            return [fake_validate_job, ]
-        else: return validate_jobs
 

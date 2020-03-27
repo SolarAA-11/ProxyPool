@@ -1,4 +1,4 @@
-import asyncio, logging, sys
+import asyncio, logging, sys, traceback, time
 from asyncio import Semaphore, Event, Queue
 from typing import Dict
 
@@ -101,24 +101,36 @@ class NetManager:
         task2job: Dict[asyncio.Task, CrawlJob] = dict()
         # task callback
         def _on_completed(task: asyncio.Task):
+            # 任务重启
+            def _crawl_job_retry(crawl_job: CrawlJob):
+                if crawl_job.retry_count < self.max_retry_count: # 请求失败 且重试次数小于指定值 重新入队 等待下次调度
+                    crawl_job.retry_count += 1
+                    self.append_job(crawl_job)
+                else: # 请求失败 耗尽重试次数
+                    self.event_crawl_job_finish.add_page_fail_count()
+
             crawl_job: CrawlJob = task2job[task]
             html_content:str = task.result()
 
             if html_content != "": # 正确获取 url 内容 调用回调
-                count_added_proxy = crawl_job.callback(html_content)
-                self.event_crawl_job_finish.add_page_count()
-                self.event_crawl_job_finish.add_proxy_count(count_added_proxy)
-                logging.info("完成抓取任务 {} 添加代理 {} 个".format(crawl_job.target_url, count_added_proxy))
-            elif crawl_job.retry_count < self.max_retry_count: # 请求失败 且重试次数小于指定值 重新入队 等待下次调度
-                crawl_job.retry_count += 1
-                self.append_job(crawl_job)
-            else: # 请求失败 耗尽重试次数
-                self.event_crawl_job_finish.add_page_fail_count()
+                count_added_proxy = 0
+                try:
+                    count_added_proxy = crawl_job.callback(html_content)
+                except Exception as e: # 回调异常 重启任务
+                    _crawl_job_retry(crawl_job)
+                    logging.error("Crawl Job 回调异常: %s traceback.format_exc():____%s" % (e, traceback.format_exc()))
+                    # 将错误内容写至日志目录中
+                    with open("./production/log/crawl_exception_{}.html".format(time.time()), "w") as f:
+                        f.write(html_content)
+                else: # 回调成功 成功向代理池中添加代理
+                    self.event_crawl_job_finish.add_page_count()
+                    self.event_crawl_job_finish.add_proxy_count(count_added_proxy)
+                    logging.info("完成抓取任务 {} 添加代理 {} 个".format(crawl_job.target_url, count_added_proxy))
+            else: # 获取 html content 为空 重启任务
+                _crawl_job_retry(crawl_job)
 
-            if task in task2job:
-                del task2job[task]
-            else:
-                logging.error("task not int task2job")
+            if task in task2job: del task2job[task]
+            else: logging.error("task not int task2job")
 
             # 触发 crawl job 全部完成事件
             if len(task2job) == 0 and self.crawl_job_queue.qsize() == 0:
@@ -129,7 +141,6 @@ class NetManager:
             task = asyncio.create_task(self.fetch_content(crawl_job.target_url, self.storage.get()))
             task.add_done_callback(_on_completed)
             task2job[task] = crawl_job
-
             logging.info("添加 抓取任务 {}".format(crawl_job))
 
     # 消费 ValidateJob
@@ -139,14 +150,16 @@ class NetManager:
         def _on_completed(task: asyncio.Task):
             validate_job: ValidateJob = task2job[task]
             html_content: str = task.result()
-            is_activated = validate_job.callback(html_content, validate_job.proxy_item)
+            is_activated = False
+            try:
+                is_activated = validate_job.callback(html_content, validate_job.proxy_item)
+            except Exception as e:
+                logging.error("代理认证回调异常: %s traceback.format_exc():____%s" % (e, traceback.format_exc()))
             if is_activated:
                 self.event_validate_job_finish.add_count_activated_proxy()
 
-            if task in task2job:
-                del task2job[task]
-            else:
-                logging.error("task not in task2boj")
+            if task in task2job: del task2job[task]
+            else: logging.error("task not in task2boj")
             logging.debug("完成验证任务, 代理:{}, 可用否: {}".format(validate_job.proxy_item, is_activated))
 
             # 触发 validate job 全部完成事件
