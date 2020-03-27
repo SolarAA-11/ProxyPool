@@ -57,8 +57,8 @@ def produce_job_for_FreeProxyList(self) -> List[CrawlJob]:
 - [x] 添加 API 反馈功能。通过 API 获取代理之后，可以通过 POST 将代理返回给 Web API，告知代理池此代理的使用情况：可用还是不可用。代理次将其激活或降权；
 - [x] 分离 ProxyPool 和 Web API，提高 WebAPI 的并发能力。计划分成不同的 Service，WEB API 复用 Storage 模块；
 - [ ] 查询代理池中代理的数量
-- [ ] 添加 [free-proxy](http://free-proxy.cz/en/) 的爬取
-- [ ] factory crawl job 回调抛出异常后，net manager 重试此任务
+- [x] 添加 [free-proxy](http://free-proxy.cz/en/) 的爬取
+- [x] factory crawl job 回调抛出异常后，net manager 重试此任务
 
 ## WebAPI
 
