@@ -58,6 +58,7 @@ def produce_job_for_FreeProxyList(self) -> List[CrawlJob]:
 - [x] 分离 ProxyPool 和 Web API，提高 WebAPI 的并发能力。计划分成不同的 Service，WEB API 复用 Storage 模块；
 - [ ] 查询代理池中代理的数量
 - [ ] 添加 [free-proxy](http://free-proxy.cz/en/) 的爬取
+- [ ] factory crawl job 回调抛出异常后，net manager 重试此任务
 
 ## WebAPI
 
